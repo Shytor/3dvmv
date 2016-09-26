@@ -1,0 +1,814 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>3DVMV - 3D Vector Math Visualizer</title>
+    <style>
+      	body {
+            margin: 0px;
+            padding: 0px;
+          }
+      	#screen{
+      		left:0;
+      		top:0;
+      		margin:0px;
+      		padding:0px;
+      	}
+        #input{
+            margin:8px;
+            position:absolute;
+            top: 566px;
+            left: 404px;
+        }
+        input[type=number] {
+                border-radius: 4px;
+                border: 1px solid #ddd;
+                margin: 4px;
+                width: 32px;
+        }
+        input[type=number]::-webkit-inner-spin-button, 
+        input[type=number]::-webkit-outer-spin-button { 
+                -webkit-appearance: none; 
+         }
+        #input1,#input2,#input3,#input4,#input5,#input6{
+            margin: 4px;
+            border-radius: 2px;
+            padding: 2px;
+            width: 384px;
+        }
+        #input1{
+            border: 2px solid #F00;
+        }
+        #input2{
+            border: 2px solid #E70;
+        }
+        #input3{
+            border: 2px solid #CC0;
+        }
+        #input4{
+            border: 2px solid #1D1;
+        }
+        #input5{
+            border: 2px solid #02F;
+        }
+        #input6{
+            border: 2px solid #B0C;
+        }
+        #resultants{
+            border-radius: 2px;
+            border: 2px solid #333;
+            position: absolute;
+            top: 458px;
+            left: 404px;
+            height: 80px;
+            width: 384px;
+            padding: 2px;
+        }
+        /* The switch - the box around the slider */
+        .switch {
+          position: relative;
+          display: inline-block;
+          width: 28px;
+          height: 16px;
+        }
+
+        /* Hide default HTML checkbox */
+        .switch input {display:none;}
+
+        /* The slider */
+        .slider {
+          position: absolute;
+          cursor: pointer;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background-color: #21D321;
+          -webkit-transition: .4s;
+          transition: .4s;
+        }
+
+        .slider:before {
+          position: absolute;
+          content: "";
+          height: 12px;
+          width: 12px;
+          left: 2px;
+          bottom: 2px;
+          background-color: white;
+          -webkit-transition: .4s;
+          transition: .4s;
+        }
+
+        input:checked + .slider {
+          background-color: #2196F3;
+        }
+
+        input:focus + .slider {
+          box-shadow: 0 0 1px #2196F3;
+        }
+
+        input:checked + .slider:before {
+          -webkit-transform: translateX(12px);
+          -ms-transform: translateX(12px);
+          transform: translateX(12px);
+        }
+
+        /* Rounded sliders */
+        .slider.round {
+          border-radius: 20px;
+        }
+
+        .slider.round:before {
+          border-radius: 50%;
+        }
+    </style>
+    <script src="http://ajax.googleapis.com/ajax/libs/jquery/2.1.4/jquery.min.js" type="text/javascript"></script>
+    <script type="text/javascript" src="glMatrix-0.9.5.min.js"></script>
+    <script type="text/javascript">
+//Copyright 2016 Trevor Gast: codeandcompose.com
+        //3D Vector Math Visualizer v0.1 (19 Sep 2016)
+        //GNU General Public License
+        //This program is free software: you can redistribute it and/or modify
+        //it under the terms of the GNU General Public License as published by
+        //the Free Software Foundation, either version 3 of the License, or
+        //(at your option) any later version.
+        //
+        //This program is distributed in the hope that it will be useful,
+        //but WITHOUT ANY WARRANTY; without even the implied warranty of
+        //MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+        //GNU General Public License for more details.
+
+        //You should have received a copy of the GNU General Public License
+        //along with this program.  If not, see <http://www.gnu.org/licenses/>.
+////////////////////////////////////////
+    var ctxgl; //global context for the graph canvas
+    var projectionMatrix = mat4.create();
+    var modelViewMatrix = mat4.create();
+    var shaderProgram, shaderVertexPositionAttribute, shaderVertexColorAttribute, shaderProjectionMatrixUniform, shaderModelViewMatrixUniform;
+    var entireScene = {};
+    var lastgamma = -3*Math.PI/16;
+    var lastalpha = Math.PI/6;
+    var freezeCanvas = true;
+    
+    var xoffset = 0;
+    var yoffset = 0;
+    var canvasWidth = 800;
+    var canvasHeight = 450;
+
+window.onload = function(){
+    //initialize after loading
+    var canvas = document.getElementById("screen");
+    try {
+      ctxgl = canvas.getContext('experimental-webgl');
+    }
+    catch (e)
+    {
+        msg = "Error creating WebGL Context!: " + e.toString();
+    }
+    if (!ctxgl)
+    {
+        alert(msg);
+        throw new Error(msg);
+    }
+    canvas.height = 450;
+    canvas.width = 800;
+    ctxgl.viewport(0, 0, canvas.width, canvas.height);
+
+    //offsetx = canvas.offsetLeft;
+    //offsety = canvas.offsetTop;
+    document.getElementById("screen").onmousedown = canvasClick;
+    document.getElementById("screen").onmousemove = canvasMove;
+    
+    //initialize shader program
+    initShaders(ctxgl);
+
+    //create buffers for axis
+    entireScene.XYZaxis = createLines(ctxgl,
+        [
+             1.0, 0.0, 0.0,
+            -1.0, 0.0, 0.0,
+             0.0, 1.0, 0.0,
+             0.0,-1.0, 0.0,
+             0.0, 0.0, 1.0,
+             0.0, 0.0,-1.0],
+        [
+            1,1,1,0.4,
+            1,1,1,0.4,
+            1,1,1,0.4,
+            1,1,1,0.4,
+            1,1,1,0.4,
+            1,1,1,0.4],
+        3,4);
+    entireScene.Xplane = createXYZplanes(ctxgl,[
+             1.0,  1.0,  0.0,
+            -1.0,  1.0,  0.0,
+             1.0, -1.0,  0.0,
+            -1.0, -1.0,  0.0],
+            [0.2,0.2,0.5,0.2,
+            0.2,0.2,0.5,0.2,
+            0.2,0.2,0.5,0.2,
+            0.2,0.2,0.5,0.2]);
+    entireScene.Yplane = createXYZplanes(ctxgl,[
+             0.0,  1.0,  1.0,
+             0.0, -1.0,  1.0,
+             0.0,  1.0, -1.0,
+             0.0, -1.0, -1.0],
+            [0.5,0.2,0.2,0.2,
+            0.5,0.2,0.2,0.2,
+            0.5,0.2,0.2,0.2,
+            0.5,0.2,0.2,0.2]);
+    entireScene.Zplane = createXYZplanes(ctxgl,[
+             1.0,  0.0,  1.0,
+             1.0,  0.0, -1.0,
+            -1.0,  0.0,  1.0,
+            -1.0,  0.0, -1.0],
+            [0.2,0.4,0.2,0.0,
+            0.2,0.4,0.2,0.4,
+            0.2,0.4,0.2,0.4,
+            0.2,0.4,0.2,0.0]);
+
+    //initialize matrices
+    initMatrices(canvas);
+    readVectors();
+    drawScene(Math.PI/10,-Math.PI/4);
+}
+
+function drawScene(alpha,gamma){
+    // clear the background (with black)
+    ctxgl.clearColor(0.0, 0.0, 0.0, 1.0);
+    //enable depth testing
+    //ctxgl.enable(ctxgl.DEPTH_TEST);
+    //enable blending
+    ctxgl.blendFunc(ctxgl.SRC_ALPHA, ctxgl.ONE);
+    ctxgl.enable(ctxgl.BLEND);
+    ctxgl.disable(ctxgl.DEPTH_TEST);
+    ctxgl.clear(ctxgl.COLOR_BUFFER_BIT | ctxgl.DEPTH_BUFFER_BIT);
+
+        mat4.identity(modelViewMatrix);
+        mat4.translate(modelViewMatrix, [0.0, 0.0, -3.0]);
+        mat4.rotateX(modelViewMatrix,alpha);
+        mat4.rotateY(modelViewMatrix,gamma);
+    
+    //draw stuff
+    for (var b in entireScene){
+        draw(ctxgl,entireScene[b]);
+    }
+    //display resultants
+    var Fi = Math.round(allVectors[6].vec[0]*1000)/1000;
+    var Fj = Math.round(allVectors[6].vec[1]*1000)/1000;
+    var Fk = Math.round(allVectors[6].vec[2]*1000)/1000;
+    var Mi = Math.round(allVectors[7].vec[0]*1000)/1000;
+    var Mj = Math.round(allVectors[7].vec[1]*1000)/1000;
+    var Mk = Math.round(allVectors[7].vec[2]*1000)/1000;
+    $('#Fresult').html("[ " + Fi + "i&#770; + " + Fj + "j&#770; + " + Fk + "k&#770; ]");
+    $('#Mresult').html("[ " + Mi + "i&#770; + " + Mj + "j&#770; + " + Mk + "k&#770; ]");
+}
+
+window.requestAnimFrame = (function(){
+    return window.requestAnimationFrame || window.webkitRequesAnimationFrame || window.mozRequesAnimationFrame || window.oRequesAnimationFrame || window.msRequesAnimationFrame ||
+    function (callback){
+    window.setTimeout(callback, 1000/60);
+    };
+})();
+
+function draw(gl, obj) {
+
+    // set the vertex buffer to be drawn
+    gl.bindBuffer(gl.ARRAY_BUFFER, obj.vBuffer);
+
+    // connect up the shader parameters: vertex position
+    gl.vertexAttribPointer(shaderVertexPositionAttribute, obj.vertSize, gl.FLOAT, false, 0, 0);
+    gl.enableVertexAttribArray(shaderVertexPositionAttribute);
+    if (obj.iBuffer) gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, obj.iBuffer);
+    //connect colors
+    gl.bindBuffer(gl.ARRAY_BUFFER, obj.cBuffer);
+    gl.vertexAttribPointer(shaderVertexColorAttribute, obj.colorSize, gl.FLOAT, false, 0, 0);
+    gl.enableVertexAttribArray(shaderVertexColorAttribute);
+
+    //...and projection/model matrices
+    gl.uniformMatrix4fv(shaderProjectionMatrixUniform, false, projectionMatrix);
+    gl.uniformMatrix4fv(shaderModelViewMatrixUniform, false, modelViewMatrix);
+
+    // draw the object
+    gl.drawArrays(obj.primtype, 0, obj.nVerts);
+    //gl.drawElements(obj.primtype, obj.nIndices, gl.UNSIGNED_SHORT, 0);
+}
+
+/////// GL functions
+    function createXYZplanes(gl,verts,colors) {
+        var vertexBuffer = gl.createBuffer();
+        var indexBuffer = gl.createBuffer();
+        var colorBuffer = gl.createBuffer();
+
+
+        var indices = [0, 1, 2,0, 2, 3];
+        gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(verts), gl.STATIC_DRAW);
+
+        // Index data
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
+        gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(indices), gl.STATIC_DRAW);
+
+        // Color data
+        gl.bindBuffer(gl.ARRAY_BUFFER, colorBuffer);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(colors), gl.STATIC_DRAW);
+
+        //unbind
+        gl.bindBuffer(gl.ARRAY_BUFFER, null);
+        return {"vBuffer":vertexBuffer,"iBuffer":indexBuffer,"cBuffer":colorBuffer,"vertSize":3,"nVerts":4,"primtype":gl.TRIANGLE_STRIP,"nIndices":6,"colorSize":4,"nColors":4};
+
+    }
+    function createLines(gl,verts,colors,vSize,cSize,type){
+        var vertexBuffer = gl.createBuffer();
+        var colorBuffer = gl.createBuffer();
+        if (!type) type = gl.LINES;
+
+        gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(verts), gl.STATIC_DRAW);
+        
+        // Color data
+        gl.bindBuffer(gl.ARRAY_BUFFER, colorBuffer);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(colors), gl.STATIC_DRAW);
+
+        //unbind
+        gl.bindBuffer(gl.ARRAY_BUFFER, null);
+        return {"vBuffer":vertexBuffer,"cBuffer":colorBuffer,"vertSize":vSize,"nVerts":verts.length/vSize,"primtype":type,"colorSize":cSize,"nColors":colors.length/cSize};
+    }
+
+    function initMatrices(canvas){
+        // Create a project matrix with 45 degree field of view
+        mat4.perspective(45, canvas.width / canvas.height, 0.1, 100.0, projectionMatrix);
+    }
+
+    ////////// SHADER //////////
+    function createShader(gl, str, type) {
+        var shader;
+        if (type == "fragment") {
+            shader = gl.createShader(gl.FRAGMENT_SHADER);
+        } else if (type == "vertex") {
+            shader = gl.createShader(gl.VERTEX_SHADER);
+        } else {
+            return null;
+        }
+
+        gl.shaderSource(shader, str);
+        gl.compileShader(shader);
+
+        if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+            alert(gl.getShaderInfoLog(shader));
+            return null;
+        }
+
+        return shader;
+    }
+
+    var vertexShaderSource =
+        "attribute vec3 vertexPos;" +
+        "attribute vec4 vertexColor;" +
+        "varying vec4 vColor;" +
+        "uniform mat4 uModelViewMatrix;" +
+        "uniform mat4 uProjectionMatrix;" +
+        "void main(void) {" +
+        "gl_Position = uProjectionMatrix * uModelViewMatrix * vec4(vertexPos, 1.0);" +
+        "vColor = vertexColor;" +
+        "}";
+    var fragmentShaderSource =
+        "precision mediump float;" +
+        "varying vec4 vColor;" +
+        "void main(void) {" +
+        "gl_FragColor = vColor;" +
+        "}";
+
+    function initShaders(gl) {
+        // load and compile the fragment and vertex shader
+        var fragmentShader = createShader(gl, fragmentShaderSource, "fragment");
+        var vertexShader = createShader(gl, vertexShaderSource, "vertex");
+
+        // link them together into a new program
+        shaderProgram = gl.createProgram();
+        gl.attachShader(shaderProgram, vertexShader);
+        gl.attachShader(shaderProgram, fragmentShader);
+        gl.linkProgram(shaderProgram);
+
+        if (!gl.getProgramParameter(shaderProgram, gl.LINK_STATUS)) {
+            alert("Could not initialise shaders");
+        }
+
+        // set the shader to use
+        gl.useProgram(shaderProgram);
+
+        // get pointers to the shader params
+        shaderVertexPositionAttribute = gl.getAttribLocation(shaderProgram, "vertexPos");
+        //gl.vertexAttribPointer(shaderVertexPositionAttribute, 3, gl.FLOAT, false, 0, 0);
+        //gl.enableVertexAttribArray(shaderVertexPositionAttribute);
+        
+        // point attribute to the volor buffer object
+        shaderVertexColorAttribute = gl.getAttribLocation(shaderProgram, "vertexColor");
+        //gl.vertexAttribPointer(shaderVertexColorAttribute, 3, gl.FLOAT, false,0,0) ;
+        //gl.enableVertexAttribArray(shaderVertexColorAttribute);
+        
+        shaderProjectionMatrixUniform = gl.getUniformLocation(shaderProgram, "uProjectionMatrix");
+        shaderModelViewMatrixUniform = gl.getUniformLocation(shaderProgram, "uModelViewMatrix");
+    }
+
+    function canvasMove(event){
+        if (freezeCanvas) return;
+        event = event || window.event;
+        var scrollX = window.pageXOffset || document.body.scrollLeft;
+        var scrollY = window.pageYOffset || document.body.scrollTop;
+        var moveX = event.clientX + scrollX - xoffset;
+        var moveY = event.clientY + scrollY - yoffset;
+        lastalpha = Math.PI/2*(moveY/canvasHeight);
+        lastgamma = Math.PI/2*(moveX/canvasWidth)-(Math.PI/2);
+        drawScene(lastalpha,lastgamma);
+    }
+    function canvasClick(event){
+        freezeCanvas = ! freezeCanvas;
+    }
+/////////
+///////// Document functions, Vector calulator
+var allVectors = [];
+
+function readVectors(){
+    var fmv = [0,0,0];
+    var ffv = [0,0,0];
+    var emptyVec = [0,0,0];
+    //add vectors from input
+    for (var n=1;n<=6;n++){
+        allVectors[n-1] = new vector($('#v'+n+'xr').val(),$('#v'+n+'yr').val(),$('#v'+n+'zr').val(),$('#v'+n+'x').val(),$('#v'+n+'y').val(),$('#v'+n+'z').val(),colorList[n],$('#v1FM').is(':checked'));
+        $('#v'+n+'mag').val(Math.round(allVectors[n-1].mag*100)/100);
+        $('#v'+n+'alpha').val(Math.round(allVectors[n-1].alpha*1800/Math.PI)/10);
+        $('#v'+n+'beta').val(Math.round(allVectors[n-1].beta*1800/Math.PI)/10);
+        $('#v'+n+'gamma').val(Math.round(allVectors[n-1].gamma*1800/Math.PI)/10);
+        if (!allVectors[n-1].moment){
+            //turn forces into moments about origin and sum
+            fmv = vec3.add(fmv,vec3.cross(allVectors[n-1].rvec,allVectors[n-1].vec,emptyVec),emptyVec);
+            //sum forces
+            emptyVec = [0,0,0];
+            ffv = vec3.add(ffv,allVectors[n-1].vec,emptyVec);
+            emptyVec = [0,0,0];
+        } else {
+            //sum moments
+            fmv = vec3.add(fmv,allVectors[n-1].vec,emptyVec);
+            emptyVec = [0,0,0];
+        }
+    }
+
+    //resultant force vector
+    allVectors[6] = new vector(0,0,0,ffv[0],ffv[1],ffv[2],[1,1,1,1,1,1,1,1],false);
+    allVectors[7] = new vector(0,0,0,fmv[0],fmv[1],fmv[2],[1,1,1,1,1,1,1,1],true);
+    //create buffer for all vectors
+    updateVectorBuffer();
+}
+
+function readVector(n,t,value){
+    if (t.substr(0,1) === "x" || t.substr(0,1) === "y" || t.substr(0,1) === "z"){
+        var p = (t.length === 2) ? "rvec" : "vec";
+        var a = (t.substr(0,1) === "x") ? 0 : 1;
+        a = (t.substr(0,1) === "z") ? 2 : a;
+    } else {
+        p = t;
+        if (t === "alpha" || t === "beta" || t === "gamma"){
+            if (Math.abs(value) > 180) value = 180; //must be in range
+            value = value * Math.PI / 180; //convert to radians
+        }
+    }
+    //update the vector
+    allVectors[n-1].update(value,p,a);
+    if (t === "mag" || t === "alpha" || t === "beta" || t === "gamma"){
+        $('#v'+n+'x').val(Math.round(allVectors[n-1].vec[0]*1000)/1000);
+        $('#v'+n+'y').val(Math.round(allVectors[n-1].vec[1]*1000)/1000);
+        $('#v'+n+'z').val(Math.round(allVectors[n-1].vec[2]*1000)/1000);
+    }
+    if (t !== "mag"){
+        $('#v'+n+'mag').val(Math.round(allVectors[n-1].mag*1000)/1000);
+        $('#v'+n+'alpha').val(Math.round(allVectors[n-1].alpha*1800/Math.PI)/10);
+        $('#v'+n+'beta').val(Math.round(allVectors[n-1].beta*1800/Math.PI)/10);
+        $('#v'+n+'gamma').val(Math.round(allVectors[n-1].gamma*1800/Math.PI)/10);
+    }
+    updateResultantVectors();
+    updateVectorBuffer();
+}
+
+function updateResultantVectors(){
+    var fmv = [0,0,0];
+    var ffv = [0,0,0];
+    var emptyVec = [0,0,0];
+    for (var c=0;c<6;c++){
+        if (!allVectors[c].moment){
+            //turn forces into moments about origin and sum
+            fmv = vec3.add(vec3.cross(allVectors[c].rvec,allVectors[c].vec,emptyVec),fmv,emptyVec);
+            emptyVec = [0,0,0];//clear empty vector for math... bug...
+            //sum forces
+            ffv = vec3.add(ffv,allVectors[c].vec,emptyVec);
+            emptyVec = [0,0,0];
+        } else {
+            //sum moments
+            fmv = vec3.add(fmv,allVectors[c].vec,emptyVec);
+            emptyVec = [0,0,0];
+        }
+    }
+    allVectors[6].vec = ffv;
+    allVectors[7].vec = fmv;
+    allVectors[6].updateMag();
+    allVectors[7].updateMag();
+}
+
+function updateVectorBuffer(){
+    var vectors = [];
+    var colors = [];
+    for (var v=0;v<allVectors.length;v++){
+        colors = colors.concat(allVectors[v].color);
+        var emptyVec = [];
+        vectors = vectors.concat(vec3.scale(allVectors[v].rvec,1/$('#scale').val(),emptyVec));
+        vectors = vectors.concat(vec3.scale(vec3.add(allVectors[v].vec,allVectors[v].rvec,emptyVec),1/$('#scale').val(),emptyVec));
+    }
+    entireScene.vectors = createLines(ctxgl,vectors,colors,3,4);
+    updateMomentCircleBuffer($('#scale').val());
+    updateForceArrowBuffer($('#scale').val());
+}
+
+function updateMomentCircleBuffer(scale){
+    //loop through vectors to find moments
+    var points = [];
+    var colors = [];
+    var count = 0;
+    for (var m=0;m<8;m++){
+        if (!allVectors[m].moment || allVectors[m].mag === 0) continue;
+        //first find hypotenuse of x-v
+        var endPoint = [0,0,0];
+        vec3.add(allVectors[m].vec,allVectors[m].rvec,endPoint);
+        var dxz = Math.sqrt((endPoint[0]*endPoint[0])+(endPoint[2]*endPoint[2]));
+        var l = 0.05*allVectors[m].vec[1]/allVectors[m].mag;
+        //create array of points - 18 for now
+        for (var p=0;p<18;p++){
+            points[p*3+(count*54)] = (endPoint[0] + (((0.05*scale)*Math.sin(p/9*Math.PI)*allVectors[m].vec[2]/dxz) - ((l*scale)*Math.cos(p/9*Math.PI)*allVectors[m].vec[0]/dxz)))/scale;//Math.sqrt(Math.pow(dxz+(l*Math.cos(p/18*Math.PI)),2)/((endPoint[2]*endPoint[2])/(endPoint[0]*endPoint[0])+1) + (0.05*Math.sin(p/18*Math.PI)*endPoint[0]/dxz))/scale;
+            points[p*3+2+(count*54)] = (endPoint[2] + (-((0.05*scale)*Math.sin(p/9*Math.PI)*allVectors[m].vec[0]/dxz) - ((l*scale)*Math.cos(p/9*Math.PI)*allVectors[m].vec[2]/dxz)))/scale;//Math.sqrt(Math.pow(dxz+(l*Math.cos(p/18*Math.PI)),2)/((endPoint[0]*endPoint[0])/(endPoint[2]*endPoint[2])+1) + (0.05*Math.sin(p/18*Math.PI)*endPoint[2]/dxz))/scale;
+            //points[p*3] = (endPoint[0] + l*Math.cos(p/18*Math.PI)*allVectors[m].vec[2]/dxz)/scale;// - (0.05*Math.sin(p/18*Math.PI)*endPoint[2]/dxz))/scale;//Math.sqrt(Math.pow(dxz+(l*Math.cos(p/18*Math.PI)),2)/((endPoint[2]*endPoint[2])/(endPoint[0]*endPoint[0])+1))/scale + (0.05*Math.sin(p/18*Math.PI)*endPoint[2]/dxz);
+            //points[p*3+2] = (endPoint[2] + l*Math.cos(p/18*Math.PI)*allVectors[m].vec[0]/dxz)/scale;// - (0.05*Math.sin(p/18*Math.PI)*endPoint[0]/dxz))/scale;//Math.sqrt(Math.pow(dxz+(l*Math.cos(p/18*Math.PI)),2)/((endPoint[0]*endPoint[0])/(endPoint[2]*endPoint[2])+1))/scale + (0.05*Math.sin(p/18*Math.PI)*endPoint[0]/dxz);
+            points[p*3+1+(count*54)] = (endPoint[1] + ((0.05*scale)*dxz/allVectors[m].mag)*Math.cos(p/9*Math.PI))/scale;
+            colors = colors.concat(allVectors[m].color.slice(0,4));
+        }
+        count++;
+    }
+    //create a buffer, using the same color as the vector
+    entireScene.moments = createLines(ctxgl,points,colors,3,4,ctxgl.LINES);
+}
+
+function updateForceArrowBuffer(scale){
+    //loop through vectors to find moments
+    var points = [];
+    var colors = [];
+    var count = 0;
+    for (var m=0;m<7;m++){
+        if (allVectors[m].moment || allVectors[m].mag === 0) {
+            if (entireScene["forceArrow" + m.toString()]) delete entireScene["forceArrow" + m.toString()];
+            continue;
+        }
+        //first find hypotenuse of x-v
+        var endPoint = [0,0,0];
+        vec3.add(allVectors[m].vec,allVectors[m].rvec,endPoint);
+        var dxz = Math.sqrt((endPoint[0]*endPoint[0])+(endPoint[2]*endPoint[2]));
+        var l = 0.02*allVectors[m].vec[1]/allVectors[m].mag;
+        //create array of points - 10 for now
+        points[0] = endPoint[0]/scale + (0.05*allVectors[m].vec[0]/allVectors[m].mag);
+        points[1] = endPoint[1]/scale + (0.05*allVectors[m].vec[1]/allVectors[m].mag);
+        points[2] = endPoint[2]/scale + (0.05*allVectors[m].vec[2]/allVectors[m].mag);
+        colors = colors.concat(allVectors[m].color.slice(0,4));
+        for (var p=0;p<=10;p++){
+            points[p*3+3] = (endPoint[0] + (((0.02*scale)*Math.sin(p/5*Math.PI)*allVectors[m].vec[2]/dxz) - ((l*scale)*Math.cos(p/5*Math.PI)*allVectors[m].vec[0]/dxz)))/scale;
+            points[p*3+5] = (endPoint[2] + (-((0.02*scale)*Math.sin(p/5*Math.PI)*allVectors[m].vec[0]/dxz) - ((l*scale)*Math.cos(p/5*Math.PI)*allVectors[m].vec[2]/dxz)))/scale;
+            points[p*3+4] = (endPoint[1] + ((0.02*scale)*dxz/allVectors[m].mag)*Math.cos(p/5*Math.PI))/scale;
+            colors = colors.concat(allVectors[m].color.slice(0,4));
+        }
+        count++;
+        //create a buffer, using the same color as the vector
+        entireScene["forceArrow" + m.toString()] = createLines(ctxgl,points,colors,3,4,ctxgl.TRIANGLE_FAN);
+        points = [];
+        colors = [];
+    }
+}
+
+$(document).ready(function(){
+    $('input').keyup(function(e){
+        //skip decimals and arrow presses
+        var keyCode = (window.event) ? e.which : e.keyCode;
+        if ((keyCode >= 37 && keyCode <= 40) || keyCode === 190) return;
+        var value = parseFloat($(this).val());
+        if (isNaN(value)) return; //do nothing for non-numbers FIX ME ... alert? change to 0?
+        var thisID = $(this).attr('id');
+        if (thisID === "scale") {
+            updateVectorBuffer();
+            drawScene(lastalpha,lastgamma);
+            return;
+        }
+        var num = thisID.substr(1,1);//which vector is it?
+        var type = thisID.substr(2);
+        if (type === "vec" && Math.abs(value) > $('#scale').val()) $('#scale').val(Math.ceil(Math.abs(value)));
+        readVector(num,type,value);
+        drawScene(lastalpha,lastgamma);
+    });
+    $('.FM').change(function(e){
+        var num = $(this).attr('id').substr(1,1);//which box was flipped?
+        allVectors[num-1].moment = $(this).is(':checked');
+        updateResultantVectors();
+        updateVectorBuffer();
+        drawScene(lastalpha,lastgamma);
+    });
+    $('#clear').click(function(){//zero all boxes
+        for (var n=1;n<=6;n++){
+            allVectors[n-1].reset();
+            $('#v'+n+'x').val(0);
+            $('#v'+n+'y').val(0);
+            $('#v'+n+'z').val(0);
+            $('#v'+n+'xr').val(0);
+            $('#v'+n+'yr').val(0);
+            $('#v'+n+'zr').val(0);
+            $('#v'+n+'alpha').val(0);
+            $('#v'+n+'beta').val(0);
+            $('#v'+n+'gamma').val(0);
+            $('#v'+n+'mag').val(0);
+        }
+        updateResultantVectors();
+        updateVectorBuffer();
+        drawScene(lastalpha,lastgamma);
+    });
+});
+
+//vector constructor
+vector = function (rx,ry,rz,x,y,z,c,FM){
+    this.color = c;
+    this.moment = FM;//false is force, true is moment
+    this.rvec = vec3.create([rx,ry,rz]);
+    this.vec = vec3.create([x,y,z]);
+    this.mag = vec3.length(this.vec);
+    this.alpha = Math.acos(x/this.mag);
+    this.beta = Math.acos(y/this.mag);
+    this.gamma = Math.acos(z/this.mag);
+    //do these later
+    this.update = function(value,p,a){
+        if (p === "rvec"){
+            this.rvec[a] = value;
+            return;
+        } else if (p === "vec"){
+            this.vec[a] = value;
+            this.mag = vec3.length(this.vec);
+            this.alpha = Math.acos(this.vec[0]/this.mag);
+            this.beta = Math.acos(this.vec[1]/this.mag);
+            this.gamma = Math.acos(this.vec[2]/this.mag);
+            return;
+        } else if (p === "mag"){
+            this.vec = vec3.scale(this.vec,value/this.mag);
+            this.mag = value;
+            return;
+        } else if (p === "alpha"){
+            this.alpha = value;
+            if (Math.pow(Math.cos(this.alpha),2) + Math.pow(Math.cos(this.gamma),2) > 1) this.gamma = Math.acos(Math.sqrt(1-Math.pow(Math.cos(this.alpha),2)));
+            if (Math.pow(Math.cos(this.alpha),2) + Math.pow(Math.cos(this.gamma),2) === 1) this.beta = Math.PI/2;
+            else this.beta = Math.acos(Math.sqrt(1 - Math.pow(Math.cos(this.alpha),2) - Math.pow(Math.cos(this.gamma),2)));
+            this.updateVec();
+        } else if (p === "beta"){
+            this.beta = value;
+            if (Math.pow(Math.cos(this.beta),2) + Math.pow(Math.cos(this.alpha),2) > 1) this.alpha = Math.acos(Math.sqrt(1-Math.pow(Math.cos(this.beta),2)));
+            if (Math.pow(Math.cos(this.beta),2) + Math.pow(Math.cos(this.alpha),2) === 1) this.gamma = Math.PI/2;
+            else this.gamma = Math.acos(Math.sqrt(1 - Math.pow(Math.cos(this.beta),2) - Math.pow(Math.cos(this.alpha),2)));
+            this.updateVec();
+        } else if (p === "gamma"){
+            this.gamma = value;
+            if (Math.pow(Math.cos(this.gamma),2) + Math.pow(Math.cos(this.beta),2) > 1) this.beta = Math.acos(Math.sqrt(1-Math.pow(Math.cos(this.gamma),2)));
+            if (Math.pow(Math.cos(this.gamma),2) + Math.pow(Math.cos(this.beta),2) === 1) this.alpha = Math.PI/2;
+            else this.alpha = Math.acos(Math.sqrt(1 - Math.pow(Math.cos(this.gamma),2) - Math.pow(Math.cos(this.beta),2)));
+            this.updateVec();
+        }
+    };
+    this.updateVec = function(){
+        this.vec[0] = Math.cos(this.alpha)*this.mag;
+        this.vec[1] = Math.cos(this.beta)*this.mag;
+        this.vec[2] = Math.cos(this.gamma)*this.mag;
+    };
+    this.updateMag = function(){
+        this.mag = vec3.length(this.vec);
+    };
+    this.reset = function(){
+        this.vec = [0,0,0];
+        this.rvec = [0,0,0];
+        this.alpha = 0;
+        this.beta = 0;
+        this.gamma = 0;
+        this.mag = 0;
+    };
+}
+colorList = [[1,1,1,1,1,1,1,1],[1,0,0,1,1,0,0,1],[0.88,0.44,0,1,0.88,0.44,0,1],[0.75,0.75,0,1,0.75,0.75,0,1],[0.1,0.81,0.1,1,0.1,0.81,0.1,1],[0,0.13,1,1,0,0.13,1,1],[0.63,0,0.75,1,0.63,0,0.75,1]];
+//F00,E70,CC0,1D1,02F,B0C
+////////////////////////////////////////
+</script>
+</head>
+<body>
+    <canvas id="screen" width="800" height="450">Your browser does not support HTML 5... loser!</canvas>
+    <div id="input"><form>
+        Graph Settings<br />
+        <select id="DegRad" class="Units">
+            <option value="deg">Degrees</option>
+            <option value="km">Radians</option>
+        </select><br />
+        Scale: <input type="number" id="scale" value="5"><br/>
+        <button id="clear" type="button">Clear All</button>
+    </form></div>
+    <div id="resultants">
+        Resultant Vectors<br/>
+        Force = <span id="Fresult">[]</span><br/>
+        Moment = <span id="Mresult">[]</span>
+    </div>
+    <div id="input1"><form>
+        Vector A&#8407;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+        Force <label class="switch"><input type="checkbox" id="v1FM" class="FM"><div class="slider"></div></label> Moment<br />
+        Position: X<input type="number" id="v1xr" value="0" class="rvalue">
+        Y<input type="number" id="v1yr" value="0" class="rvalue">
+        Z<input type="number" id="v1zr" value="0" class="rvalue">
+        <br/>Components:
+        <input type="number" id="v1x" value="1" class="nvalue" autofocus="autofocus">i&#770;
+        <input type="number" id="v1y" value="1" class="nvalue">j&#770;
+        <input type="number" id="v1z" value="1" class="nvalue">k&#770;</br>
+        |A&#8407;| <input type="number" id="v1mag" value="0">
+        &#945;:<input type="number" id="v1alpha" value="0">
+        &#946;:<input type="number" id="v1beta" value="0">
+        &#947;:<input type="number" id="v1gamma" value="0"></form><br/>
+    </form></div>
+    <div id="input2"><form>
+        Vector B&#8407;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+        Force <label class="switch"><input type="checkbox" id="v2FM" class="FM"><div class="slider"></div></label> Moment<br />
+        Position: X<input type="number" id="v2xr" value="0" class="rvalue">
+        Y<input type="number" id="v2yr" value="0" class="rvalue">
+        Z<input type="number" id="v2zr" value="0" class="rvalue">
+        <br/>Components:
+        <input type="number" id="v2x" value="1" class="nvalue" autofocus="autofocus">i&#770;
+        <input type="number" id="v2y" value="0.5" class="nvalue">j&#770;
+        <input type="number" id="v2z" value="1" class="nvalue">k&#770;</br>
+        |B&#8407;| <input type="number" id="v2mag" value="0">
+        &#945;:<input type="number" id="v2alpha" value="0">
+        &#946;:<input type="number" id="v2beta" value="0">
+        &#947;:<input type="number" id="v2gamma" value="0"></form><br/>
+    </form></div>
+    <div id="input3"><form>
+        Vector C&#8407;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+        Force <label class="switch"><input type="checkbox" id="v3FM" class="FM"><div class="slider"></div></label> Moment<br />
+        Position: X<input type="number" id="v3xr" value="0" class="rvalue">
+        Y<input type="number" id="v3yr" value="0" class="rvalue">
+        Z<input type="number" id="v3zr" value="0" class="rvalue">
+        <br/>Components:
+        <input type="number" id="v3x" value="1" class="nvalue" autofocus="autofocus">i&#770;
+        <input type="number" id="v3y" value="1" class="nvalue">j&#770;
+        <input type="number" id="v3z" value="-1" class="nvalue">k&#770;</br>
+        |A&#8407;| <input type="number" id="v3mag" value="0">
+        &#945;:<input type="number" id="v3alpha" value="0">
+        &#946;:<input type="number" id="v3beta" value="0">
+        &#947;:<input type="number" id="v3gamma" value="0"></form><br/>
+    </form></div>
+    <div id="input4"><form>
+        Vector D&#8407;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+        Force <label class="switch"><input type="checkbox" id="v4FM" class="FM"><div class="slider"></div></label> Moment<br />
+        Position: X<input type="number" id="v4xr" value="0" class="rvalue">
+        Y<input type="number" id="v4yr" value="0" class="rvalue">
+        Z<input type="number" id="v4zr" value="0" class="rvalue">
+        <br/>Components:
+        <input type="number" id="v4x" value="2" class="nvalue" autofocus="autofocus">i&#770;
+        <input type="number" id="v4y" value="1" class="nvalue">j&#770;
+        <input type="number" id="v4z" value="1" class="nvalue">k&#770;</br>
+        |B&#8407;| <input type="number" id="v4mag" value="0">
+        &#945;:<input type="number" id="v4alpha" value="0">
+        &#946;:<input type="number" id="v4beta" value="0">
+        &#947;:<input type="number" id="v4gamma" value="0"></form><br/>
+    </form></div>
+    <div id="input5"><form>
+        Vector E&#8407;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+        Force <label class="switch"><input type="checkbox" id="v5FM" class="FM"><div class="slider"></div></label> Moment<br />
+        Position: X<input type="number" id="v5xr" value="0" class="rvalue">
+        Y<input type="number" id="v5yr" value="0" class="rvalue">
+        Z<input type="number" id="v5zr" value="0" class="rvalue">
+        <br/>Components:
+        <input type="number" id="v5x" value="-1" class="nvalue" autofocus="autofocus">i&#770;
+        <input type="number" id="v5y" value="1" class="nvalue">j&#770;
+        <input type="number" id="v5z" value="-1" class="nvalue">k&#770;</br>
+        |A&#8407;| <input type="number" id="v5mag" value="0">
+        &#945;:<input type="number" id="v5alpha" value="0">
+        &#946;:<input type="number" id="v5beta" value="0">
+        &#947;:<input type="number" id="v5gamma" value="0"></form><br/>
+    </form></div>
+    <div id="input6"><form>
+        Vector F&#8407;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+        Force <label class="switch"><input type="checkbox" id="v6FM" class="FM"><div class="slider"></div></label> Moment<br />
+        Position: X<input type="number" id="v6xr" value="0" class="rvalue">
+        Y<input type="number" id="v6yr" value="0" class="rvalue">
+        Z<input type="number" id="v6zr" value="0" class="rvalue">
+        <br/>Components:
+        <input type="number" id="v6x" value="-2" class="nvalue" autofocus="autofocus">i&#770;
+        <input type="number" id="v6y" value="-1" class="nvalue">j&#770;
+        <input type="number" id="v6z" value="-1" class="nvalue">k&#770;</br>
+        |B&#8407;| <input type="number" id="v6mag" value="0">
+        &#945;:<input type="number" id="v6alpha" value="0">
+        &#946;:<input type="number" id="v6beta" value="0">
+        &#947;:<input type="number" id="v6gamma" value="0"></form><br/>
+    </form></div>
+
+</body>
+</html>
