@@ -7,7 +7,8 @@
             margin: 0px;
             padding: 0px;
           }
-      	#screen{
+      	#screen,#screen2D{
+            position: absolute;
       		left:0;
       		top:0;
       		margin:0px;
@@ -30,6 +31,8 @@
                 -webkit-appearance: none; 
          }
         #input1,#input2,#input3,#input4,#input5,#input6{
+            position: relative;
+            top: 450px;
             margin: 4px;
             border-radius: 2px;
             padding: 2px;
@@ -126,7 +129,7 @@
     <script type="text/javascript" src="glMatrix-0.9.5.min.js"></script>
     <script type="text/javascript">
 //Copyright 2016 Trevor Gast: codeandcompose.com
-        //3D Vector Math Visualizer v0.1 (19 Sep 2016)
+        //3D Vector Math Visualizer v1.0 (28 Sep 2016)
         //GNU General Public License
         //This program is free software: you can redistribute it and/or modify
         //it under the terms of the GNU General Public License as published by
@@ -155,6 +158,13 @@
     var canvasWidth = 800;
     var canvasHeight = 450;
 
+    var ximg = new Image();
+    var yimg = new Image();
+    var zimg = new Image();
+    ximg.src = "x.png";
+    yimg.src = "y.png";
+    zimg.src = "z.png";
+
 window.onload = function(){
     //initialize after loading
     var canvas = document.getElementById("screen");
@@ -170,14 +180,18 @@ window.onload = function(){
         alert(msg);
         throw new Error(msg);
     }
-    canvas.height = 450;
-    canvas.width = 800;
+    var canvas2D = document.getElementById("screen2D");
+    ctx2D = canvas2D.getContext('2d');
+    canvas.height = canvasHeight;
+    canvas.width = canvasWidth;
+    canvas2D.height = canvasHeight;
+    canvas2D.width = canvasWidth;
     ctxgl.viewport(0, 0, canvas.width, canvas.height);
 
     //offsetx = canvas.offsetLeft;
     //offsety = canvas.offsetTop;
-    document.getElementById("screen").onmousedown = canvasClick;
-    document.getElementById("screen").onmousemove = canvasMove;
+    document.getElementById("screen2D").onmousedown = canvasClick;
+    document.getElementById("screen2D").onmousemove = canvasMove;
     
     //initialize shader program
     initShaders(ctxgl);
@@ -235,6 +249,7 @@ window.onload = function(){
 
 function drawScene(alpha,gamma){
     // clear the background (with black)
+    ctx2D.clearRect(0,0,canvasWidth,canvasHeight);
     ctxgl.clearColor(0.0, 0.0, 0.0, 1.0);
     //enable depth testing
     //ctxgl.enable(ctxgl.DEPTH_TEST);
@@ -253,6 +268,37 @@ function drawScene(alpha,gamma){
     for (var b in entireScene){
         draw(ctxgl,entireScene[b]);
     }
+    var clipspaceX = mat4.multiplyVec4(modelViewMatrix,[1, 0, 0, 1]);
+    var clipspaceY = mat4.multiplyVec4(modelViewMatrix,[0, 1, 0, 1]);
+    var clipspaceZ = mat4.multiplyVec4(modelViewMatrix,[0, 0, 1, 1]);
+    mat4.multiplyVec4(projectionMatrix,clipspaceX);
+    mat4.multiplyVec4(projectionMatrix,clipspaceY);
+    mat4.multiplyVec4(projectionMatrix,clipspaceZ);
+
+        // divide X and Y by W just like the GPU does.
+        clipspaceX[0] /= clipspaceX[3];
+        clipspaceX[1] /= clipspaceX[3];
+        clipspaceY[0] /= clipspaceY[3];
+        clipspaceY[1] /= clipspaceY[3];
+        clipspaceZ[0] /= clipspaceZ[3];
+        clipspaceZ[1] /= clipspaceZ[3];
+
+        // convert from clipspace to pixels
+        var pixelXx = (clipspaceX[0] *  0.5  + 0.5) * canvasWidth;
+        var pixelYx = (clipspaceX[1] * -0.5 + 0.5) * canvasHeight;
+        var pixelXy = (clipspaceY[0] *  0.5  + 0.5) * canvasWidth;
+        var pixelYy = (clipspaceY[1] * -0.5 + 0.5) * canvasHeight;
+        var pixelXz = (clipspaceZ[0] *  0.5  + 0.5) * canvasWidth;
+        var pixelYz = (clipspaceZ[1] * -0.5 + 0.5) * canvasHeight;
+        var Zxsize = Math.round(32*0.9/(clipspaceX[2]/clipspaceX[3]));
+        ctx2D.drawImage(ximg,pixelXx-Zxsize,pixelYx-Zxsize,Zxsize,Zxsize);
+        var Zysize = Math.round(32*0.8/(clipspaceY[2]-1)+(88/9*(clipspaceY[2]-1.8)));
+        console.log(Zysize);
+        ctx2D.drawImage(yimg,pixelXy,pixelYy,Zysize,Zysize);
+        var Zzsize = Math.round(32/(clipspaceZ[2]-1));
+        ctx2D.drawImage(zimg,pixelXz,pixelYz-Zzsize,Zzsize,Zzsize);
+    //draw axis labels
+    //ctx2D.drawRect()
     //display resultants
     var Fi = Math.round(allVectors[6].vec[0]*1000)/1000;
     var Fj = Math.round(allVectors[6].vec[1]*1000)/1000;
@@ -272,7 +318,18 @@ window.requestAnimFrame = (function(){
 })();
 
 function draw(gl, obj) {
+    /*// draw textures first:
+        gl.vertexAttribPointer(shaderTexCoordAttribute, obj.texCoordSize, gl.FLOAT, false, 0, 0);
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, obj.indices);
 
+        gl.uniformMatrix4fv(shaderProjectionMatrixUniform, false, projectionMatrix);
+        gl.uniformMatrix4fv(shaderModelViewMatrixUniform, false, modelViewMatrix);
+
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, XaxisTexture);
+        gl.uniform1i(shaderSamplerUniform, 0);//*/
+
+    //draw lines and stuff
     // set the vertex buffer to be drawn
     gl.bindBuffer(gl.ARRAY_BUFFER, obj.vBuffer);
 
@@ -317,6 +374,18 @@ function draw(gl, obj) {
         gl.bindBuffer(gl.ARRAY_BUFFER, null);
         return {"vBuffer":vertexBuffer,"iBuffer":indexBuffer,"cBuffer":colorBuffer,"vertSize":3,"nVerts":4,"primtype":gl.TRIANGLE_STRIP,"nIndices":6,"colorSize":4,"nColors":4};
 
+    }
+    function createXYZlabels(){
+        var texCoordBuffer = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, texCoordBuffer);
+        var textureCoords = [
+          // +x
+          0.0, 0.0,
+          1.0, 0.0,
+          1.0, 1.0,
+          0.0, 1.0
+        ];
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(textureCoords), gl.STATIC_DRAW);
     }
     function createLines(gl,verts,colors,vSize,cSize,type){
         var vertexBuffer = gl.createBuffer();
@@ -378,6 +447,27 @@ function draw(gl, obj) {
         "void main(void) {" +
         "gl_FragColor = vColor;" +
         "}";
+/*
+    var textureVertexShaderSource =
+
+        "    attribute vec3 vertexPos;" +
+        "    attribute vec2 texCoord;" +
+        "    uniform mat4 modelViewMatrix;" +
+        "    uniform mat4 projectionMatrix;" +
+        "    varying vec2 vTexCoord;" +
+        "    void main(void) {" +
+        "        gl_Position = projectionMatrix * modelViewMatrix * " +
+        "            vec4(vertexPos, 1.0);" +
+        "        vTexCoord = texCoord;" +
+        "    }";
+
+    var textureFragmentShaderSource =
+        "    precision mediump float;" +
+        "    varying vec2 vTexCoord;" +
+        "    uniform sampler2D uSampler;" +
+        "    void main(void) {" +
+        "    gl_FragColor = texture2D(uSampler, vec2(vTexCoord.s, vTexCoord.t));" +
+        "}";//*/
 
     function initShaders(gl) {
         // load and compile the fragment and vertex shader
@@ -538,7 +628,7 @@ function updateMomentCircleBuffer(scale){
         //first find hypotenuse of x-v
         var endPoint = [0,0,0];
         vec3.add(allVectors[m].vec,allVectors[m].rvec,endPoint);
-        var dxz = Math.sqrt((endPoint[0]*endPoint[0])+(endPoint[2]*endPoint[2]));
+        var dxz = Math.sqrt((allVectors[m].vec[0]*allVectors[m].vec[0])+(allVectors[m].vec[2]*allVectors[m].vec[2]));
         var l = 0.05*allVectors[m].vec[1]/allVectors[m].mag;
         //create array of points - 18 for now
         for (var p=0;p<18;p++){
@@ -568,7 +658,7 @@ function updateForceArrowBuffer(scale){
         //first find hypotenuse of x-v
         var endPoint = [0,0,0];
         vec3.add(allVectors[m].vec,allVectors[m].rvec,endPoint);
-        var dxz = Math.sqrt((endPoint[0]*endPoint[0])+(endPoint[2]*endPoint[2]));
+        var dxz = Math.sqrt((allVectors[m].vec[0]*allVectors[m].vec[0])+(allVectors[m].vec[2]*allVectors[m].vec[2]));
         var l = 0.02*allVectors[m].vec[1]/allVectors[m].mag;
         //create array of points - 10 for now
         points[0] = endPoint[0]/scale + (0.05*allVectors[m].vec[0]/allVectors[m].mag);
@@ -588,6 +678,31 @@ function updateForceArrowBuffer(scale){
         colors = [];
     }
 }
+
+/*/textures
+function handleTextureLoaded(gl, texture) {
+        gl.bindTexture(gl.TEXTURE_2D, texture);
+        gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, texture.image);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+        gl.bindTexture(gl.TEXTURE_2D, null);
+        //okToRun = true;
+    }
+
+var XaxisTexture;
+var YaxisTexture;
+var ZaxisTexture;
+
+function initTexture(gl,texture) {
+ webGLTexture = gl.createTexture();
+ webGLTexture.image = new Image();
+ webGLTexture.image.onload = function () {
+        handleTextureLoaded(gl,texture)
+    }
+
+ texture.image.src = "x.png";
+}//*/
 
 $(document).ready(function(){
     $('input').keyup(function(e){
@@ -611,6 +726,10 @@ $(document).ready(function(){
     $('.FM').change(function(e){
         var num = $(this).attr('id').substr(1,1);//which box was flipped?
         allVectors[num-1].moment = $(this).is(':checked');
+        if (allVectors[num-1].moment) allVectors[num-1].origin();//if it is moment, set it to origin
+        $('#v'+num+'xr').val(0);
+        $('#v'+num+'yr').val(0);
+        $('#v'+num+'zr').val(0);
         updateResultantVectors();
         updateVectorBuffer();
         drawScene(lastalpha,lastgamma);
@@ -697,6 +816,9 @@ vector = function (rx,ry,rz,x,y,z,c,FM){
         this.gamma = 0;
         this.mag = 0;
     };
+    this.origin = function(){
+        this.rvec = [0,0,0];
+    };
 }
 colorList = [[1,1,1,1,1,1,1,1],[1,0,0,1,1,0,0,1],[0.88,0.44,0,1,0.88,0.44,0,1],[0.75,0.75,0,1,0.75,0.75,0,1],[0.1,0.81,0.1,1,0.1,0.81,0.1,1],[0,0.13,1,1,0,0.13,1,1],[0.63,0,0.75,1,0.63,0,0.75,1]];
 //F00,E70,CC0,1D1,02F,B0C
@@ -705,6 +827,7 @@ colorList = [[1,1,1,1,1,1,1,1],[1,0,0,1,1,0,0,1],[0.88,0.44,0,1,0.88,0.44,0,1],[
 </head>
 <body>
     <canvas id="screen" width="800" height="450">Your browser does not support HTML 5... loser!</canvas>
+    <canvas id="screen2D" width="800" height="450">Your browser does not support HTML 5... loser!</canvas>
     <div id="input"><form>
         Graph Settings<br />
         <select id="DegRad" class="Units">
