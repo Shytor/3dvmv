@@ -290,12 +290,11 @@ function drawScene(alpha,gamma){
         var pixelYy = (clipspaceY[1] * -0.5 + 0.5) * canvasHeight;
         var pixelXz = (clipspaceZ[0] *  0.5  + 0.5) * canvasWidth;
         var pixelYz = (clipspaceZ[1] * -0.5 + 0.5) * canvasHeight;
-        var Zxsize = Math.round(32*0.9/(clipspaceX[2]/clipspaceX[3]));
+        var Zxsize = Math.round(32*0.8/(clipspaceX[2]-1)+(88/9*(clipspaceX[2]-1.8)));//Math.round(32*0.9/(clipspaceX[2]/clipspaceX[3]));
         ctx2D.drawImage(ximg,pixelXx-Zxsize,pixelYx-Zxsize,Zxsize,Zxsize);
         var Zysize = Math.round(32*0.8/(clipspaceY[2]-1)+(88/9*(clipspaceY[2]-1.8)));
-        console.log(Zysize);
         ctx2D.drawImage(yimg,pixelXy,pixelYy,Zysize,Zysize);
-        var Zzsize = Math.round(32/(clipspaceZ[2]-1));
+        var Zzsize = Math.round(32*0.8/(clipspaceZ[2]-1)+(88/9*(clipspaceZ[2]-1.8)));//Math.round(32/(clipspaceZ[2]-1));
         ctx2D.drawImage(zimg,pixelXz,pixelYz-Zzsize,Zzsize,Zzsize);
     //draw axis labels
     //ctx2D.drawRect()
