@@ -15,10 +15,14 @@
       		padding:0px;
       	}
         #input{
-            margin:8px;
-            position:absolute;
+            border-radius: 2px;
+            border: 2px solid #333;
+            padding: 8px;
+            margin: 0px;
+            position: absolute;
             top: 566px;
             left: 404px;
+            width: 372px;
         }
         input[type=number] {
                 border-radius: 4px;
@@ -829,12 +833,15 @@ colorList = [[1,1,1,1,1,1,1,1],[1,0,0,1,1,0,0,1],[0.88,0.44,0,1,0.88,0.44,0,1],[
     <canvas id="screen2D" width="800" height="450">Your browser does not support HTML 5... loser!</canvas>
     <div id="input"><form>
         Graph Settings<br />
-        <select id="DegRad" class="Units">
+        <!-- <select id="DegRad" class="Units">
             <option value="deg">Degrees</option>
             <option value="km">Radians</option>
-        </select><br />
+        </select><br /> -->
         Scale: <input type="number" id="scale" value="5"><br/>
-        <button id="clear" type="button">Clear All</button>
+        <button id="clear" type="button">Clear All</button><br/>
+        <br/>Copyright &copy; Trevor Gast 2016 
+        <br/><a href="http://codeandcompose.com">codeandcompose.com</a>
+        <br /><a href="http://www.gnu.org/licenses/">GNU General Public License</a>
     </form></div>
     <div id="resultants">
         Resultant Vectors<br/>
@@ -931,6 +938,5 @@ colorList = [[1,1,1,1,1,1,1,1],[1,0,0,1,1,0,0,1],[0.88,0.44,0,1,0.88,0.44,0,1],[
         &#946;:<input type="number" id="v6beta" value="0">
         &#947;:<input type="number" id="v6gamma" value="0"></form><br/>
     </form></div>
-
 </body>
 </html>
