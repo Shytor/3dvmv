@@ -661,7 +661,7 @@ function updateForceArrowBuffer(scale){
         //first find hypotenuse of x-v
         var endPoint = [0,0,0];
         vec3.add(allVectors[m].vec,allVectors[m].rvec,endPoint);
-        var dxz = Math.sqrt((allVectors[m].vec[0]*allVectors[m].vec[0])+(allVectors[m].vec[2]*allVectors[m].vec[2]));
+        var dxz = (allVectors[m].vec[0] === 0 && allVectors[m].vec[2] === 0) ? allVectors[m].vec[1] : Math.sqrt((allVectors[m].vec[0]*allVectors[m].vec[0])+(allVectors[m].vec[2]*allVectors[m].vec[2]));
         var l = 0.02*allVectors[m].vec[1]/allVectors[m].mag;
         //create array of points - 10 for now
         points[0] = endPoint[0]/scale + (0.05*allVectors[m].vec[0]/allVectors[m].mag);
@@ -669,10 +669,13 @@ function updateForceArrowBuffer(scale){
         points[2] = endPoint[2]/scale + (0.05*allVectors[m].vec[2]/allVectors[m].mag);
         colors = colors.concat(allVectors[m].color.slice(0,4));
         for (var p=0;p<=10;p++){
-            points[p*3+3] = (endPoint[0] + (((0.02*scale)*Math.sin(p/5*Math.PI)*allVectors[m].vec[2]/dxz) - ((l*scale)*Math.cos(p/5*Math.PI)*allVectors[m].vec[0]/dxz)))/scale;
-            points[p*3+5] = (endPoint[2] + (-((0.02*scale)*Math.sin(p/5*Math.PI)*allVectors[m].vec[0]/dxz) - ((l*scale)*Math.cos(p/5*Math.PI)*allVectors[m].vec[2]/dxz)))/scale;
-            points[p*3+4] = (endPoint[1] + ((0.02*scale)*dxz/allVectors[m].mag)*Math.cos(p/5*Math.PI))/scale;
+            //fix for vertical vectors...
+            points[p*3+3] = (allVectors[m].vec[0] === 0 && allVectors[m].vec[2] === 0) ? (endPoint[0] + (0.02*scale)*Math.sin(p/5*Math.PI))/scale : (endPoint[0] + (((0.02*scale)*Math.sin(p/5*Math.PI)*allVectors[m].vec[2]/dxz) - ((l*scale)*Math.cos(p/5*Math.PI)*allVectors[m].vec[0]/dxz)))/scale;
+            points[p*3+5] = (allVectors[m].vec[0] === 0 && allVectors[m].vec[2] === 0) ? (endPoint[2] + (0.02*scale)*Math.cos(p/5*Math.PI))/scale : (endPoint[2] + (-((0.02*scale)*Math.sin(p/5*Math.PI)*allVectors[m].vec[0]/dxz) - ((l*scale)*Math.cos(p/5*Math.PI)*allVectors[m].vec[2]/dxz)))/scale;
+            points[p*3+4] = (allVectors[m].vec[0] === 0 && allVectors[m].vec[2] === 0) ? endPoint[1]/scale: (endPoint[1] + ((0.02*scale)*dxz/allVectors[m].mag)*Math.cos(p/5*Math.PI))/scale;
             colors = colors.concat(allVectors[m].color.slice(0,4));
+            if (allVectors[m].vec[0] === 0 && allVectors[m].vec[2] === 0) console.log(points[p*3+4]);
+        
         }
         count++;
         //create a buffer, using the same color as the vector
@@ -839,6 +842,7 @@ colorList = [[1,1,1,1,1,1,1,1],[1,0,0,1,1,0,0,1],[0.88,0.44,0,1,0.88,0.44,0,1],[
         </select><br /> -->
         Scale: <input type="number" id="scale" value="5"><br/>
         <button id="clear" type="button">Clear All</button><br/>
+        <br/><a href="https://github.com/Shytor/3dvmv">Repo on GitHub</a>
         <br/>Copyright &copy; Trevor Gast 2016 
         <br/><a href="http://codeandcompose.com">codeandcompose.com</a>
         <br /><a href="http://www.gnu.org/licenses/">GNU General Public License</a>
