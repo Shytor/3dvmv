@@ -631,15 +631,15 @@ function updateMomentCircleBuffer(scale){
         //first find hypotenuse of x-v
         var endPoint = [0,0,0];
         vec3.add(allVectors[m].vec,allVectors[m].rvec,endPoint);
-        var dxz = Math.sqrt((allVectors[m].vec[0]*allVectors[m].vec[0])+(allVectors[m].vec[2]*allVectors[m].vec[2]));
+        var dxz = (allVectors[m].vec[0] === 0 && allVectors[m].vec[2] === 0) ? allVectors[m].vec[1] : Math.sqrt((allVectors[m].vec[0]*allVectors[m].vec[0])+(allVectors[m].vec[2]*allVectors[m].vec[2]));
         var l = 0.05*allVectors[m].vec[1]/allVectors[m].mag;
         //create array of points - 18 for now
         for (var p=0;p<18;p++){
-            points[p*3+(count*54)] = (endPoint[0] + (((0.05*scale)*Math.sin(p/9*Math.PI)*allVectors[m].vec[2]/dxz) - ((l*scale)*Math.cos(p/9*Math.PI)*allVectors[m].vec[0]/dxz)))/scale;//Math.sqrt(Math.pow(dxz+(l*Math.cos(p/18*Math.PI)),2)/((endPoint[2]*endPoint[2])/(endPoint[0]*endPoint[0])+1) + (0.05*Math.sin(p/18*Math.PI)*endPoint[0]/dxz))/scale;
-            points[p*3+2+(count*54)] = (endPoint[2] + (-((0.05*scale)*Math.sin(p/9*Math.PI)*allVectors[m].vec[0]/dxz) - ((l*scale)*Math.cos(p/9*Math.PI)*allVectors[m].vec[2]/dxz)))/scale;//Math.sqrt(Math.pow(dxz+(l*Math.cos(p/18*Math.PI)),2)/((endPoint[0]*endPoint[0])/(endPoint[2]*endPoint[2])+1) + (0.05*Math.sin(p/18*Math.PI)*endPoint[2]/dxz))/scale;
+            points[p*3+(count*54)] = (allVectors[m].vec[0] === 0 && allVectors[m].vec[2] === 0) ? (endPoint[0] + (0.05*scale)*Math.sin(p/5*Math.PI))/scale : (endPoint[0] + (((0.05*scale)*Math.sin(p/9*Math.PI)*allVectors[m].vec[2]/dxz) - ((l*scale)*Math.cos(p/9*Math.PI)*allVectors[m].vec[0]/dxz)))/scale;//Math.sqrt(Math.pow(dxz+(l*Math.cos(p/18*Math.PI)),2)/((endPoint[2]*endPoint[2])/(endPoint[0]*endPoint[0])+1) + (0.05*Math.sin(p/18*Math.PI)*endPoint[0]/dxz))/scale;
+            points[p*3+2+(count*54)] = (allVectors[m].vec[0] === 0 && allVectors[m].vec[2] === 0) ? (endPoint[2] + (0.05*scale)*Math.cos(p/5*Math.PI))/scale : (endPoint[2] + (-((0.05*scale)*Math.sin(p/9*Math.PI)*allVectors[m].vec[0]/dxz) - ((l*scale)*Math.cos(p/9*Math.PI)*allVectors[m].vec[2]/dxz)))/scale;//Math.sqrt(Math.pow(dxz+(l*Math.cos(p/18*Math.PI)),2)/((endPoint[0]*endPoint[0])/(endPoint[2]*endPoint[2])+1) + (0.05*Math.sin(p/18*Math.PI)*endPoint[2]/dxz))/scale;
             //points[p*3] = (endPoint[0] + l*Math.cos(p/18*Math.PI)*allVectors[m].vec[2]/dxz)/scale;// - (0.05*Math.sin(p/18*Math.PI)*endPoint[2]/dxz))/scale;//Math.sqrt(Math.pow(dxz+(l*Math.cos(p/18*Math.PI)),2)/((endPoint[2]*endPoint[2])/(endPoint[0]*endPoint[0])+1))/scale + (0.05*Math.sin(p/18*Math.PI)*endPoint[2]/dxz);
             //points[p*3+2] = (endPoint[2] + l*Math.cos(p/18*Math.PI)*allVectors[m].vec[0]/dxz)/scale;// - (0.05*Math.sin(p/18*Math.PI)*endPoint[0]/dxz))/scale;//Math.sqrt(Math.pow(dxz+(l*Math.cos(p/18*Math.PI)),2)/((endPoint[0]*endPoint[0])/(endPoint[2]*endPoint[2])+1))/scale + (0.05*Math.sin(p/18*Math.PI)*endPoint[0]/dxz);
-            points[p*3+1+(count*54)] = (endPoint[1] + ((0.05*scale)*dxz/allVectors[m].mag)*Math.cos(p/9*Math.PI))/scale;
+            points[p*3+1+(count*54)] = (allVectors[m].vec[0] === 0 && allVectors[m].vec[2] === 0) ? endPoint[1]/scale : (endPoint[1] + ((0.05*scale)*dxz/allVectors[m].mag)*Math.cos(p/9*Math.PI))/scale;
             colors = colors.concat(allVectors[m].color.slice(0,4));
         }
         count++;
@@ -672,10 +672,8 @@ function updateForceArrowBuffer(scale){
             //fix for vertical vectors...
             points[p*3+3] = (allVectors[m].vec[0] === 0 && allVectors[m].vec[2] === 0) ? (endPoint[0] + (0.02*scale)*Math.sin(p/5*Math.PI))/scale : (endPoint[0] + (((0.02*scale)*Math.sin(p/5*Math.PI)*allVectors[m].vec[2]/dxz) - ((l*scale)*Math.cos(p/5*Math.PI)*allVectors[m].vec[0]/dxz)))/scale;
             points[p*3+5] = (allVectors[m].vec[0] === 0 && allVectors[m].vec[2] === 0) ? (endPoint[2] + (0.02*scale)*Math.cos(p/5*Math.PI))/scale : (endPoint[2] + (-((0.02*scale)*Math.sin(p/5*Math.PI)*allVectors[m].vec[0]/dxz) - ((l*scale)*Math.cos(p/5*Math.PI)*allVectors[m].vec[2]/dxz)))/scale;
-            points[p*3+4] = (allVectors[m].vec[0] === 0 && allVectors[m].vec[2] === 0) ? endPoint[1]/scale: (endPoint[1] + ((0.02*scale)*dxz/allVectors[m].mag)*Math.cos(p/5*Math.PI))/scale;
+            points[p*3+4] = (allVectors[m].vec[0] === 0 && allVectors[m].vec[2] === 0) ? endPoint[1]/scale : (endPoint[1] + ((0.02*scale)*dxz/allVectors[m].mag)*Math.cos(p/5*Math.PI))/scale;
             colors = colors.concat(allVectors[m].color.slice(0,4));
-            if (allVectors[m].vec[0] === 0 && allVectors[m].vec[2] === 0) console.log(points[p*3+4]);
-        
         }
         count++;
         //create a buffer, using the same color as the vector
